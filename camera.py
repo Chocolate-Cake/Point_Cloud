@@ -1,4 +1,5 @@
 import math
+import tools
 
 '''
 Assumptions: 
@@ -11,8 +12,8 @@ Assumptions:
 - depth map image has 0, 0 in the bottom left corner
 
 
-Considerations (not implemented):
-- instead of adding i and j vectors to find pixel vector, can rotate view vector about i j axis r radians instead for better accuracy
+Considerations:
+- make sure rotations about i j vectors are in correct direction, currently assuming right hand rule rotation
 
 '''
 
@@ -31,48 +32,6 @@ class Camera:
 		self.hp = hp
 		self.darkest = dark
 
-	def round(self, vector, decs):
-		result = []
-		for num in vector:
-			result.append(round(num, decs))
-		return result
-
-	#http://planning.cs.uiuc.edu/node102.html
-	def yaw(self, vector, angle):
-		return self.round([math.cos(angle) * vector[0] - math.sin(angle) * vector[1],
-				math.sin(angle) * vector[0] + math.cos(angle) * vector[1],
-				vector[2]], 14)
-
-	def pitch(self, vector, angle):
-		return self.round([math.cos(angle) * vector[0] + math.sin(angle) * vector[2],
-				vector[1],
-				-math.sin(angle) * vector[0] + math.cos(angle) * vector[2]], 14)
-
-	def roll(self, vector, angle):
-		return self.round([vector[0],
-				math.cos(angle) * vector[1] - math.sin(angle) * vector[2],
-				math.sin(angle) * vector[1] + math.cos(angle) * vector[2]], 14)
-
-	def ortho(self, u, v):
-		return [u[1] * v[2] - v[1] * u[2],
-				-(u[0] * v[2] - v[0] * u[2]),
-				u[0] * v[1] - v[0] * u[1]]
-
-	def len_vect(self, v):
-		return math.sqrt(pow(v[0], 2) + pow(v[1], 2) + pow(v[2], 2))
-
-	def normalize(self, v, n):
-		return [v[0]/ n, v[1]/n, v[2]/n]
-
-	def multiple_dist(self, v, dist):
-		return [v[0] * dist, v[1] * dist, v[2] * dist]
-
-	def invert(self, v):
-		return [-v[0], -v[1], -v[2]]
-
-	def sum_vect(self, v, u):
-		return [v[0] + u[0], v[1] + u[1], v[2] + u[2]]
-
 	'''
 	Given depth image, convert to points in 3D space
 	pos = camera x y z in objective 3D space
@@ -85,52 +44,45 @@ class Camera:
 		j_mid = self.hp/2
 
 		#direction of camera's view
-		vect = self.pitch([0,0,1], p)
-		vect = self.roll(vect, r)
-		vect = self.yaw(vect, y)
+		vect = tools.pitch([0,0,1], p)
+		vect = tools.roll(vect, r)
+		vect = tools.yaw(vect, y)
 
 		#parallel to top and bottom of view frame, runs from right to left
-		horz = self.pitch([-1,0,0], lp)
-		horz = self.roll(horz, lr)
-		horz = self.yaw(horz, ly)
+		horz = tools.pitch([-1,0,0], lp)
+		horz = tools.roll(horz, lr)
+		horz = tools.yaw(horz, ly)
 
 		#parallel to left and right of view frame, runs from bottom to top
-		vert = self.ortho(vect, horz)
+		vert = tools.ortho(vect, horz)
 
-		new_pts = []
+		new_pts = set()
 
 		for i in range(len(projection)):
 			for j in range(len(projection[i])):
-				i_dist = abs(i + 0.5 - i_mid)/self.wp * self.width
-				j_dist = abs(j + 0.5 - j_mid)/self.hp * self.height
-				'''
-				want distance in units of change in l w, add to view direction vector to find vector of each pixel location
-				'''
-				#if left of center, use horz vector as is, else flip direction
-				if i < i_mid:
-					i_vect = self.normalize(horz, self.len_vect(horz))
-				else:
-					i_vect = self.normalize(self.invert(horz), self.len_vect(horz))
+				#get radians difference from center
+				i_rad = -(i + 0.5 - i_mid)/self.wp * self.wr
+				j_rad = -(j + 0.5 - j_mid)/self.hp * self.hr
 
-				#if below center, flip direction, else use vert vector as is
-				if j < j_mid:
-					j_vect = self.normalize(self.invert(vert), self.len_vect(vert))
-				else:
-					j_vect = self.normalize(vert, self.len_vect(vert))
+				#get rotation
+				m_i = tools.rmatrix_to_vector(tools.invert(tools.make_unit_vector(vert)), i_rad)
+				m_j = tools.rmatrix_to_vector(tools.make_unit_vector(horz), j_rad)
 
-				max_vect = self.normalize(vect, self.len_vect(vect))
-				max_vect = self.multiple_dist(max_vect, self.darkest)
+				max_vect = tools.normalize(vect, tools.len_vect(vect))
+				max_vect = tools.vector_multiplier(max_vect, tools.darkest)
 
-				#get vector from camera to pixel, vector in objective 3D space
-				pix_vect = self.sum_vect(self.sum_vect(max_vect, i_vect), j_vect)
+				#get vector from camera to pixel, with vector in objective 3D space
 				pix_dist = projection[i][j] / 255 * self.darkest
-				pix_vect = self.normalize(pix_vect, self.len_vect(pix_vect))
-				pix_vect = self.multiple_dist(pix_vect, pix_dist)
+				pv = [tools.dot_product(vect, i_rad[0]), tools.dot_product(vect, i_rad[1]), tools.dot_product(vect, i_rad[2])]
+				pv = [tools.dot_product(pv, i_rad[0]), tools.dot_product(pv, i_rad[1]), tools.dot_product(pv, i_rad[2])]
+				pv = tools.make_unit_vector(pv)
+				pix_vect = tools.vector_multiplier(pv, pix_dist)
 
 				#get position of this point in 3D space
-				pix_pt = self.sum_vect(pos, pix_vect)
-				new_pts.append(pix_pt)
-		return new_pts
+				pix_pt = tools.sum_vectors(pos, pix_vect)
+				new_pts.append(tools.make_ints(pix_pt))
+
+		return list(new_pts)
 
 if __name__ == "__main__":
 	pass
