@@ -6,20 +6,32 @@ linear algebra matrix tool functions -------------------------------------------
 '''
 
 #http://planning.cs.uiuc.edu/node102.html
-def yaw(vector, angle):
-	return vector_round([math.cos(angle) * vector[0] - math.sin(angle) * vector[1],
+def yaw(vector, angle, do_round=True):
+	result = [math.cos(angle) * vector[0] - math.sin(angle) * vector[1],
 			math.sin(angle) * vector[0] + math.cos(angle) * vector[1],
-			vector[2]], 14)
+			vector[2]]
+	if do_round:
+		return vector_round(result, 14)
+	else:
+		return result
 
-def pitch(vector, angle):
-	return vector_round([math.cos(angle) * vector[0] + math.sin(angle) * vector[2],
+def pitch(vector, angle, do_round=True):
+	result = [math.cos(angle) * vector[0] + math.sin(angle) * vector[2],
 			vector[1],
-			-math.sin(angle) * vector[0] + math.cos(angle) * vector[2]], 14)
+			-math.sin(angle) * vector[0] + math.cos(angle) * vector[2]]
+	if do_round:
+		return vector_round(result, 14)
+	else:
+		return result
 
-def roll(vector, angle):
-	return vector_round([vector[0],
+def roll(vector, angle, do_round=True):
+	result = [vector[0],
 			math.cos(angle) * vector[1] - math.sin(angle) * vector[2],
-			math.sin(angle) * vector[1] + math.cos(angle) * vector[2]], 14)
+			math.sin(angle) * vector[1] + math.cos(angle) * vector[2]]
+	if do_round:
+		return vector_round(result, 14)
+	else:
+		return result
 
 def identity():
 	return [[1, 0, 0],
@@ -109,7 +121,7 @@ point cloud tool functions -----------------------------------------------------
 Purpose: given list of points, find 2 points that defines the box that bounds all points
 points = list of tuples of xyz
 '''
-def find_min_max(points):
+def find_min_max(points_list):
     min_x = min([tup[0] for tup in points_list])
     max_x = max([tup[0] for tup in points_list])
     min_y = min([tup[1] for tup in points_list])

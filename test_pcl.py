@@ -4,11 +4,12 @@ import math
 import argparse
 from CloudManager import CloudManager
 import sys
+import numpy as np
 import os
 from PIL import Image
 
-c = CloudManager()
-
+c = CloudManager(math.pi/4, math.pi/4, 10, do_round=False)
+'''
 def test_make_cloud():
 	#test concat_points_cloud
 	print()
@@ -39,24 +40,27 @@ def test_replace_with_empty():
 	empty = [(1,1,1), (3,3,3)]
 	c.concat_points_cloud(empty)
 	print("after " + str(c.cloud_size()))
-
+'''
 def test_depth_map():
-	t = [[150, 150, 200, 200],
-		 [150, 150, 200, 200],
-		  [255, 255, 100, 100],
-		  [255, 255, 100, 100]]
+	t = np.zeros((8, 8))
+	for j in range(8):
+		for i in range(8):
+			#t[i][j] = abs(i-j)*int(255/7)
+			t[i][j] = 255
 
-	
+	c.concat_depth_map((0, 0, 0), t, 0, 0, 0, 0, 0, 0)
+	c.save_cloud("test.txt")
 
 def test_write_cloud():
 	c.save_cloud("test.txt")
 
 
-test_make_cloud()
-test_replace_with_pts()
-test_r_search()
+#test_make_cloud()
+#test_replace_with_pts()
+#test_r_search()
 
 #test_replace_with_empty()
+test_depth_map()
 #test_write_cloud()
 #p = pcl.PointCloud()
 

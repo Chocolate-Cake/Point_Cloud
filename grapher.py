@@ -3,7 +3,6 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 from scipy.spatial import ConvexHull 
 import numpy as np
 
-
 def graph(points, f = None):
     
     if f is not None:

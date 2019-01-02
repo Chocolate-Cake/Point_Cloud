@@ -22,11 +22,11 @@ class CloudManager:
     - may need to change the way the remove function works, if too many points in cloud and too slow.
     instead of converting all cloud to list, remove all coordinates of empty space in incoming image
     '''
-    def __init__(self, width, height, wr, hr, wp, hp, dark):
+    def __init__(self, wr, hr, dark, do_round=True):
         self.cloud = pcl.PointCloud()
         #TODO what is this param
         self.octree = pcl.OctreePointCloudSearch(0.1)
-        self.camera = Camera(width, height, wr, hr, wp, hp, dark)
+        self.camera = Camera(wr, hr, dark, do_round=do_round)
         #self.agents = AgentsManager()
 
     '''
@@ -52,7 +52,7 @@ class CloudManager:
     def concat_depth_map(self, pos, projection, p, r, y, lp, lr, ly):
         points_list = self.camera.convert(pos, projection, p, r, y, lp, lr, ly)
         x, y, z = tools.find_min_max(points_list)
-        self.replace(points, (min_x, max_x), (min_y, max_y), (min_z, max_z))
+        self.replace(points_list, x, y, z)
 
     '''
     Purpose: returns num instances of coordinates of points in radius r of input coordinate pt_pos
@@ -111,11 +111,12 @@ class CloudManager:
     ''''
     Purpose: utility function to write cloud to file because matplotlib is incompatible with docker instance needed for pcl
     f = string file name to write to
-    ''''
+    '''
     def save_cloud(self, f):
         with open(f, 'w+') as doc:
             for p in self.cloud.to_list():
                 doc.write(str(p[0]) + ',' + str(p[1]) + ',' + str(p[2]) + '\n')
+
     '''
     Purpose: print out points in cloud with their index numbers, good for verifying radius search
     '''
