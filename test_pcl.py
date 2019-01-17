@@ -1,14 +1,14 @@
 import sys
 import pcl
 import math
-import argparse
+import tools
 from CloudManager import CloudManager
 import sys
 import numpy as np
 import os
 from PIL import Image
 
-c = CloudManager(math.pi/4, math.pi/4, 10, do_round=False)
+cloud = CloudManager(math.pi/4, math.pi/4, 10, do_round=False)
 '''
 def test_make_cloud():
 	#test concat_points_cloud
@@ -43,13 +43,41 @@ def test_replace_with_empty():
 '''
 def test_depth_map():
 	t = np.zeros((8, 8))
-	for j in range(8):
-		for i in range(8):
-			#t[i][j] = abs(i-j)*int(255/7)
-			t[i][j] = 255
+	for i in range(8):
+		for j in range(8):
+			t[i][j] = i + j
 
-	c.concat_depth_map((0, 0, 0), t, 0, 0, 0, 0, 0, 0)
-	c.save_cloud("test.txt")
+	t = np.array(t)
+	print(t)
+	t=tools.normalize_matrix(t, 255, 55)
+	cloud.concat_depth_map((1, 2, 3), t, (math.pi, math.pi/2, 0), (math.pi/2, 0, 0))
+
+	t = np.zeros((8, 8))
+	for i in range(8):
+		for j in range(8):
+			t[i][j] = abs(i - j)
+
+	t = np.array(t)
+	print(t)
+	t=tools.normalize_matrix(t, 255, 55)
+	cloud.concat_depth_map((1, 1, 1), t, (math.pi, 0, 0), (0, math.pi, 0))
+
+	t = np.zeros((8, 8))
+	for i in range(8):
+		for j in range(8):
+			if i > j:
+				t[i][j] = 50
+			else:
+				t[i][j] = 200
+
+	t = np.array(t)
+	print(t)
+	t=tools.normalize_matrix(t, 255, 55)
+	cloud.concat_depth_map((3, 3, 5), t, (math.pi, math.pi, math.pi/2), (0, math.pi, 0))
+
+
+	cloud.concat_points_list([(0, 0, 0)])
+	cloud.save_cloud("test.txt")
 
 def test_write_cloud():
 	c.save_cloud("test.txt")

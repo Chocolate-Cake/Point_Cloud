@@ -17,16 +17,23 @@ class CloudManager:
     TODO
     - check movement
     - deal with agents problem
+    - function to replace currently replaces a cube/rectangle space instead of cone, so removing incorrect things
+    need to check if points are reachable by cone of view
+    - fix the in_view thing 
 
     Note
     - may need to change the way the remove function works, if too many points in cloud and too slow.
     instead of converting all cloud to list, remove all coordinates of empty space in incoming image
+    - default rounds to nearest int but can toggle to have decimals when testing
     '''
-    def __init__(self, wr, hr, dark, do_round=True):
+    def __init__(self, wr, hr, view, do_round=True):
         self.cloud = pcl.PointCloud()
-        #TODO what is this param
+        self.view = view
+        self.wr = wr
+        self.hr = hr
+        self.do_round = do_round
         self.octree = pcl.OctreePointCloudSearch(0.1)
-        self.camera = Camera(wr, hr, dark, do_round=do_round)
+        self.camera = Camera(wr, hr, view, do_round=do_round)
         #self.agents = AgentsManager()
 
     '''
@@ -42,17 +49,78 @@ class CloudManager:
     Purpose: given a list of points, merge it into the saved big point cloud
     points_list = list of tuples of (x, y, z)
     '''
-    def concat_points_cloud(self, points_list):
+    def concat_points_list(self, points_list):
+        all_pts = self.cloud.to_list()
+        all_pts = all_pts + points_list
+        self.cloud = pcl.PointCloud(all_pts)
+
+    '''
+    Purpose: given a list of points, replace the block of space defined by these points
+    points_list = list of tuples of (x, y, z)
+    '''
+    def replace_points_list(self, points_list):
         x, y, z, = tools.find_min_max(points_list)
         self.replace(points_list, x, y, z)
 
     '''
-    Purpose: given a whole bunch of parameters (see camera.py), convert depth image to points and merge into saved big cloud
+    Purpose: return if a point is within view of the camera cone
     '''
-    def concat_depth_map(self, pos, projection, p, r, y, lp, lr, ly):
-        points_list = self.camera.convert(pos, projection, p, r, y, lp, lr, ly)
+    def in_view(self, pos, pt, view, left_view, vert, horz):
+        #verify not out of range
+        dist = tools.pts_dist(pt, pos)
+        if dist > self.view:
+            return False
+
+        p, r, y = view
+        lp, lr, ly = left_view
+
+        vect = tools.pitch([0,0,1], p, do_round=self.do_round)
+        vect = tools.roll(vect, r, do_round=self.do_round)
+        vect = tools.yaw(vect, y, do_round=self.do_round)
+
+        #parallel to top and bottom of view frame, runs from right to left
+        horz = tools.pitch([-1,0,0], lp, do_round=self.do_round)
+        horz = tools.roll(horz, lr, do_round=self.do_round)
+        horz = tools.yaw(horz, ly, do_round=self.do_round)
+
+        #parallel to left and right of view frame, runs from bottom to top
+        vert = tools.ortho(vect, horz)
+
+        #verify not too far left/right/high/low
+        pt_vector = (pos[0] - pt[0], pos[1] - pt[1], pos[2] - pt[2])
+        angle = tools.angle_2_vectors(pt_vector, vect)
+        vert_proj = tools.projection_vector(pt_vector, vert)
+        horz_proj = tools.projection_vector(pt_vector, horz)
+
+        vert_angle = tools.angle_2_vectors(vert_proj, vect)
+        horz_angle = tools.angle_2_vectors(horz_proj, vect)
+        if vert_angle > self.hr/2 or horz_angle > self.wr/2:
+            return False
+        else:
+            return True   
+
+    '''
+    Purpose: given a whole bunch of parameters (see camera.py), convert depth image to points and merge into saved big cloud
+    view, leftview = rotations pitch roll yaw
+    '''
+    def concat_depth_map(self, pos, projection, view, left_view):
+        points_list, vert, horz = self.camera.convert(pos, projection, view, left_view)
         x, y, z = tools.find_min_max(points_list)
-        self.replace(points_list, x, y, z)
+        p, r, y = view
+        lp, lr, ly = left_view
+
+        my_pts = self.cloud.to_list()
+        for point in my_pts:
+            #if in space and keeping points, don't remove, else remove
+            if self.in_view(pos, point, view, left_view, vert, horz) and point not in points_list:
+                my_pts.remove(point)
+
+        #add new points
+        for point in points_list:
+            if point not in my_pts:
+                my_pts.append(point)
+
+        self.cloud = pcl.PointCloud(list(my_pts))
 
     '''
     Purpose: returns num instances of coordinates of points in radius r of input coordinate pt_pos
@@ -88,7 +156,6 @@ class CloudManager:
     arr_thing = (min max) of that dimension
     '''
     def replace(self, points_list, arr_x, arr_y, arr_z):
-        
         temp_removed = []
         #remove points that aren't there anymore
         my_pts = self.cloud.to_list()

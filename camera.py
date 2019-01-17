@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import tools
 
 '''
@@ -9,7 +10,8 @@ Assumptions:
 - pitch = around y axis, in radians, CCW
 - roll = around x axis, in radians, CCW
 - yaw = around z axis, in radians, CCW
-- depth map image has 0, 0 in the bottom left corner
+- depth map image has 0, 0 in the top left corner
+- depth map top right positive, bottom left negative
 
 
 Considerations:
@@ -35,7 +37,10 @@ class Camera:
 	p r y = pitch roll yaw of camera's view
 	lp, lr, ly = pitch roll raw of left side of camera, needed to determine rotation of frame about direction of view vector
 	'''
-	def convert(self, pos, projection, p, r, y, lp, lr, ly):
+	def convert(self, pos, projection, view, left_view):
+		p, r, y = view
+		lp, lr, ly = left_view
+
 		wp = len(projection)
 		hp = len(projection[0])
 		i_mid = wp/2
@@ -56,20 +61,25 @@ class Camera:
 
 		new_pts = set()
 
-		for i in range(len(projection)):
-			for j in range(len(projection[i])):
+		i_temp = np.zeros((8, 8))
+		j_temp = np.zeros((8, 8))
+
+		#j = all the rows, i = all the columns
+		for j in range(len(projection)):
+			for i in range(len(projection[j])):
 				#get radians difference from center
-				i_rad = -(i + 0.5 - i_mid)/wp * self.wr
-				j_rad = -(j + 0.5 - j_mid)/hp * self.hr
+				i_rad = -(i + 0.5 - i_mid)/wp * self.wr 
+				j_rad = (j + 0.5 - j_mid)/hp * self.hr 
+
 				#get rotation
-				m_i = tools.rmatrix_to_vector(tools.invert(tools.make_unit_vector(vert)), i_rad)
-				m_j = tools.rmatrix_to_vector(tools.make_unit_vector(horz), j_rad)
+				m_i = tools.rmatrix_to_vector(tools.invert(tools.make_unit_vector(vert)), j_rad)
+				m_j = tools.rmatrix_to_vector(tools.invert(tools.make_unit_vector(horz)), i_rad)
 
 				max_vect = tools.normalize(vect, tools.len_vector(vect))
 				max_vect = tools.vector_multiplier(max_vect, self.darkest)
 
 				#get vector from camera to pixel, with vector in objective 3D space
-				pix_dist = projection[i][j] / 255 * self.darkest
+				pix_dist = self.darkest - float(projection[i][j]) / 255 * self.darkest
 				pv = [tools.dot_product(vect, m_i[0]), tools.dot_product(vect, m_i[1]), tools.dot_product(vect, m_i[2])]
 				pv = [tools.dot_product(pv, m_j[0]), tools.dot_product(pv, m_j[1]), tools.dot_product(pv, m_j[2])]
 				pv = tools.make_unit_vector(pv)
@@ -82,7 +92,7 @@ class Camera:
 				else:
 					new_pts.add(tuple(pix_pt))
 
-		return list(new_pts)
+		return list(new_pts), vert, horz
 
 if __name__ == "__main__":
 	pass

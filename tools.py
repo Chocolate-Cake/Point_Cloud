@@ -52,6 +52,17 @@ def matrix_add(m1, m2):
 			result[i][j] = m1[i][j] + m2[i][j]
 	return result
 
+'''
+TODO figure out the kwargs thing
+'''
+def generate_image(func, max_i, max_j):
+	t = np.zeros((max_i, max_j))
+	#for i in range(max_i):
+	#	for j in range(max_j):
+			#t[i][j] = i + j
+
+	return t
+
 # https://math.stackexchange.com/questions/142821/matrix-for-rotation-around-a-vector
 def rmatrix_to_vector(v, angle):
 	w = [[0, -v[2], v[1]],
@@ -71,6 +82,23 @@ def rmatrix_to_vector(v, angle):
 
 	result = matrix_add(identity(), first)
 	return matrix_add(result, second)
+
+def normalize_matrix(matrix, high, low):
+	i, j = np.shape(matrix)
+	highest = -float("inf")
+	lowest = float("inf")
+	for x in range(i):
+		highest = max(highest, max(matrix[x]))
+		lowest = min(lowest, min(matrix[x]))
+
+	current = highest - lowest
+	available = high - low
+	result = np.zeros((i, j))
+
+	for x in range(i):
+		for y in range(j):
+			result[x][y] = (matrix[x][y] - lowest)/current * available + low
+	return result
 
 '''
 linear algebra vector tool functions -------------------------------------------------------------------------------------------------
@@ -112,6 +140,20 @@ def invert(v):
 def sum_vectors(v, u):
 	return [v[0] + u[0], v[1] + u[1], v[2] + u[2]]
 
+def angle_2_vectors(v, u):
+	try:
+		top = dot_product(v, u)
+		bottom = len_vector(v) * len_vector(u)
+		return math.acos(top/bottom)
+	except:
+		return 0
+
+#projection of vector u along v direction
+def projection_vector(u, v):
+	top = dot_product(u, v)
+	bottom = pow(len_vector(v), 2)
+	mult = top/bottom
+	return (v[0] * mult, v[1] * mult, v[2] * mult)
 
 '''
 point cloud tool functions -------------------------------------------------------------------------------------------------
@@ -129,5 +171,12 @@ def find_min_max(points_list):
     min_z = min([tup[2] for tup in points_list])
     max_z = max([tup[2] for tup in points_list])
     return (min_x, max_z), (min_y, max_y), (min_z, max_z)
+
+def pts_dist(pt1, pt2):
+	x = pt1[0] - pt2[0]
+	y = pt1[1] - pt2[1]
+	z = pt1[2] - pt2[2]
+	return len_vector((x, y, z))
+
 
 

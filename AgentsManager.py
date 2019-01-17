@@ -10,6 +10,9 @@ class AgentManager:
 	def __init__(self):
 		self.agents = []
 
+	def check_points(self, prev, after):
+		pass
+
 	def add_agent(self, agent):
 		self.agents.append(agent)
 
